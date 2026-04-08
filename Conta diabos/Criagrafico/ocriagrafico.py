@@ -2,6 +2,7 @@ import csv
 import matplotlib.pyplot as plt
 import os
 import re
+import matplotlib.colors as mcolors
 
 arquivos = [
     "resultadoEDHMX",
@@ -10,8 +11,11 @@ arquivos = [
     "resultadoSTLI"
 ]
 
+PASTA_GRAFICOS = "graficos"
+os.makedirs(PASTA_GRAFICOS, exist_ok=True)
+
 cores_mtg = {
-    "W": "#F8F6D8",
+    "W": "#FFF2B2",
     "U": "#0E68AB",
     "B": "#150B00",
     "R": "#D3202A",
@@ -47,24 +51,32 @@ def converter_nome(nome):
     return nome
 
 
-def desenhar_circulos(ax, labels, y_base):
-    for i, label in enumerate(labels):
+def misturar_cores(lista_cores):
+    rgbs = [mcolors.to_rgb(cores_mtg.get(c, "#000000")) for c in lista_cores]
+    media = [sum(c[i] for c in rgbs) / len(rgbs) for i in range(3)]
+    return media
+
+
+def desenhar_circulos(ax, x_positions, labels):
+    for x, label in zip(x_positions, labels):
         cores = label.split("/")
 
-        for j, cor in enumerate(cores):
-            cor_hex = cores_mtg.get(cor, "#000000")
+        for i, cor in enumerate(cores):
+            y = -1.2 - (i * 0.7)
 
-            # empilhamento vertical
-            circulo = plt.Circle(
-                (i, y_base - (j * 1.2)),  # desce verticalmente
-                0.25,
-                color=cor_hex,
+            ax.scatter(
+                x,
+                y,
+                s=220,
+                c=cores_mtg.get(cor, "#000000"),
+                edgecolors="black",
+                linewidths=0.6,
+                zorder=5,
                 clip_on=False
             )
-            ax.add_patch(circulo)
 
 
-def gerar_grafico(nome_arquivo):
+def gerar_graficos(nome_arquivo):
     nomes = []
     valores = []
 
@@ -89,32 +101,89 @@ def gerar_grafico(nome_arquivo):
                 nomes.append(nome)
                 valores.append(valor)
 
-    # 🔥 Aumenta espaçamento entre barras
-    espacamento = 1.8
-    posicoes = [i * espacamento for i in range(len(valores))]
+    espacamento = 1.6
+    x_positions = [i * espacamento for i in range(len(valores))]
 
-    fig, ax = plt.subplots(figsize=(14, 6))
+    # =====================
+    # 📊 GRÁFICO DE BARRAS
+    # =====================
+    fig, ax = plt.subplots(figsize=(18, 10), dpi=200)
 
-    ax.bar(posicoes, valores, width=0.8)
+    ax.bar(x_positions, valores, width=0.7)
 
-    ax.set_xticks(posicoes)
-    ax.set_xticklabels([""] * len(nomes))
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(nomes, rotation=45, ha="right", fontsize=10)
 
-    # Ajustar limite inferior para caber círculos
-    min_val = - (max(len(n.split("/")) for n in nomes) * 1.5)
-    ax.set_ylim(min_val, max(valores) * 1.1)
+    max_cores = max(len(n.split("/")) for n in nomes)
+    limite_inferior = - (max_cores * 0.8 + 2)
 
-    # Desenhar círculos abaixo do gráfico
-    desenhar_circulos(ax, nomes, y_base=0)
+    ax.set_ylim(limite_inferior, max(valores) * 1.2)
 
-    ax.set_title(f"{nome_arquivo} - Distribuição")
+    desenhar_circulos(ax, x_positions, nomes)
 
-    plt.tight_layout()
-    plt.savefig(f"{nome_arquivo}_barras.png")
+    ax.set_title(f"{nome_arquivo} - Barras", fontsize=14)
+
+    plt.subplots_adjust(bottom=0.3)
+
+    caminho_saida = os.path.join(PASTA_GRAFICOS, f"{nome_arquivo}_barras.png")
+    plt.savefig(caminho_saida, dpi=200)
     plt.close()
 
-    print(f"Gráfico melhorado gerado: {nome_arquivo}")
+    # =====================
+    # 🥧 GRÁFICO DE PIZZA (TOP 10 LIMPO)
+    # =====================
+
+    dados = sorted(zip(valores, nomes), reverse=True)
+
+    top10 = dados[:10]
+
+    valores_top = [v for v, n in top10]
+    nomes_top = [n for v, n in top10]
+
+    outros = sum(valores) - sum(valores_top)
+
+    if outros > 0:
+        valores_top.append(outros)
+        nomes_top.append("Outros")
+
+    # 🎨 cores das fatias
+    cores_pizza = []
+    for nome in nomes_top:
+        if nome == "Outros":
+            cores_pizza.append("#CCCCCC")
+        else:
+            lista = nome.split("/")
+            cores_pizza.append(misturar_cores(lista))
+
+    fig2, ax2 = plt.subplots(figsize=(14, 14), dpi=300)
+
+    wedges, texts, autotexts = ax2.pie(
+        valores_top,
+        labels=nomes_top,
+        autopct='%1.1f%%',
+        colors=cores_pizza,
+        startangle=90,
+        textprops={'fontsize': 11},
+        labeldistance=1.25,
+        pctdistance=0.70
+    )
+
+    for t in texts:
+        t.set_horizontalalignment('center')
+
+    for t in autotexts:
+        t.set_fontsize(10)
+
+    ax2.set_title(f"{nome_arquivo} - Top 10 Combinações", fontsize=16)
+
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.92, bottom=0.05)
+
+    caminho_saida_pizza = os.path.join(PASTA_GRAFICOS, f"{nome_arquivo}_pizza_top10.png")
+    plt.savefig(caminho_saida_pizza, dpi=300)
+    plt.close()
+
+    print(f"Gráficos gerados: {nome_arquivo}")
 
 
 for arquivo in arquivos:
-    gerar_grafico(arquivo)
+    gerar_graficos(arquivo)
