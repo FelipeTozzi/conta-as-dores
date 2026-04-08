@@ -34,7 +34,9 @@ combinacao = {
     "Dune (White Blue Black Green)": 0,
     "Ruin (White Blue Black Red)": 0,
     "Witch (Blue Black Red Green)": 0,
-    "Yore (White Red Black Green)": 0
+    "Yore (White Red Black Green)": 0,
+    "Todas Cores": 0,
+    "Colorless": 0
 }
 
 # Mapeamento de teclas -> variáveis
@@ -68,7 +70,9 @@ mapa_teclas = {
     "M": "Dune (White Blue Black Green)",
     "<": "Ruin (White Blue Black Red)",
     ">": "Witch (Blue Black Red Green)",
-    ":": "Yore (White Red Black Green)"
+    ":": "Yore (White Red Black Green)",
+    "/": "Todas Cores",
+    "*": "Colorless"
 }
 
 def mostrar_menu():
@@ -99,9 +103,17 @@ while True:
     
     if opcao in mapa_teclas:
         nome_variavel = mapa_teclas[opcao]
+
+        # Segurança extra (evita erro futuro)
+        if nome_variavel not in combinacao:
+            print("Erro: variável não encontrada!")
+            continue
+
         combinacao[nome_variavel] += 1
         contador_insercoes += 1
+
         print(f"{nome_variavel} incrementado!")
+        print(f"Total atual de inserções: {contador_insercoes}")
         
     elif opcao == "0":
         salvar_csv()
@@ -115,4 +127,4 @@ print("\nResumo final:")
 for nome, valor in combinacao.items():
     print(f"{nome}: {valor}")
 
-print(f"Total de inserções: {contador_insercoes}")
+print(f"\nTotal de inserções: {contador_insercoes}")
